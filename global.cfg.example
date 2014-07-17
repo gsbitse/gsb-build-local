@@ -1,0 +1,18 @@
+#### Minimum Required Variables ####
+DRUSH_PATH=~/apps/drush/drush.php  # Path to drush.php on your computer.
+WWW_DIR=/www # Location of where your web root lives.
+TMP_DIR=/www/tmp # The location of your tmp directory for drupal and this build script to use.
+
+# DB Credentials
+DB_USERNAME=root
+DB_PASS=password
+
+
+#### Other Optional Variables ####
+## DB_URL=localhost
+## DB_PORT=3306
+
+# Default values for some of the asked questions.
+## DEFAULT_BASE_ENV=prod # The environment to base the builds off of.
+## DEFAULT_BRANCH=master # Default branch for drush make build
+## DEFAULT_INSTALL_DIR_NAME=gsb_public  # Default name for the installation directory name. This will be placed in the www directory.

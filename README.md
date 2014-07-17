@@ -3,26 +3,17 @@ gsb-build-local
 
 Contains scripts used to build GSB sites locally.  
 
-Instructions for using the build.sh script
-============================================
+Instructions for using the gsb-public-build.sh script
+=====================================================
 
-1. Create a local directory - mkdir gsb
-2. Copy build.sh to this new directory
-3. Clone the gsb-distro into this new directory - git clone https://github.com/gsbitse/gsb-distro.git
-4. Run the build script - sh build.sh
+1. Create a .gsb-local-build folder in your root directory. - mkdir .gsb-local-build
+2. Into that directory copy global.cfg.example and rename it global.cfg
+3. Set the values in global.cfg according to your environment.
+4. Run sh gsb-public-build.sh
 
-The directory structure should look like this:
+Hints
+=====
 
-/gsb
-  build.sh
-  gsb-distro
-  
-and after running the build script the directory should look something like this:
-
-/gsb
-  build.sh
-  gsb-distro
-  gsb_public
-  
-gsb_public contains your new drupal site with the typical docroot directory.
+* Create a tmp directory in the same directory you place your other sites. Give it 777 permissions. Use this for the TMP_DIR variable.
+* Make sure wherever you build the site you have the directory set up in apache.
 
