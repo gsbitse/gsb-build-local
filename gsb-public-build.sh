@@ -229,7 +229,7 @@ else
   cp -R $ACQUIA_DIR/docroot/ $INSTALL_DIR
 
   if [ $REFRESH = true ]; then
-    echo "Dump the database. This can take a few minutes."
+    echo "Dump the database. This can take upwards of 15 minutes."
     php $DRUSH_PATH @$SITE_ALIAS.$BASE_ENV sql-dump > $BUILD_DIR/$BASE_ENV.sql
 
     echo "Import the database"
