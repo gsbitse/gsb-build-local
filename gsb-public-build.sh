@@ -113,29 +113,7 @@ if [[ $INSTALL_DIR = "$WWW_DIR/" ]]; then
 fi
 
 # Read the base environment.
-read -e -p "Enter the environment to base the site on [$DEFAULT_BASE_ENV]: " BASE_ENV
-
-# If nothing is specified then use the specified default.
-if [ ! -n "$BASE_ENV" ]; then
-  BASE_ENV=$DEFAULT_BASE_ENV
-fi
-
-# Since acquia is confusing allowing stage and stage2 to be used along with
-# test and test2
-if [ $BASE_ENV = "stage" ]; then
-  BASE_ENV="test"
-elif [ $BASE_ENV = "stage2" ]; then
-  BASE_ENV="test2"
-fi
-
-# Get the url to use for stage_file_proxy.
-REMOTE_URL=http://public2-$BASE_ENV-acquia.gsb.stanford.edu
-if [[ $BASE_ENV = "prod" ]]; then
-  REMOTE_URL=http://gsb.stanford.edu
-fi
-
-# Read the base environment.
-read -e -p "Should the database be refereshed with $BASE_ENV data [y/N]: " REFRESH_CHOICE
+read -e -p "Should the database be refereshed from the server? [y/N]: " REFRESH_CHOICE
 
 # If nothing is specified then use the specified default.
 REFRESH=false
@@ -144,12 +122,39 @@ if [[ $REFRESH_CHOICE = "y" ]] || [[ $REFRESH_CHOICE = "Y" ]]; then
 fi
 
 # Read the option of using the make file.
-read -e -p "Should this run a drush make? (Otherwise it will get the code from $BASE_ENV ) [y/N]: " USE_MAKE_CHOICE
+read -e -p "Should this run a drush make? (Otherwise it will get the code from an environment of your choice) [y/N]: " USE_MAKE_CHOICE
 
 # Use make decision
 USE_MAKE=false
 if [[ $USE_MAKE_CHOICE = "y" ]] || [[ $USE_MAKE_CHOICE = "Y" ]]; then
   USE_MAKE=true
+fi
+
+# Only ask for environment if it's needed.
+if [ $REFRESH = true ] || [ $USE_MAKE = false ]; then
+
+  # Read the base environment.
+  read -e -p "Enter the environment to base the site on [$DEFAULT_BASE_ENV]: " BASE_ENV
+
+  # If nothing is specified then use the specified default.
+  if [ ! -n "$BASE_ENV" ]; then
+    BASE_ENV=$DEFAULT_BASE_ENV
+  fi
+
+  # Since acquia is confusing allowing stage and stage2 to be used along with
+  # test and test2
+  if [ $BASE_ENV = "stage" ]; then
+    BASE_ENV="test"
+  elif [ $BASE_ENV = "stage2" ]; then
+    BASE_ENV="test2"
+  fi
+
+  # Get the url to use for stage_file_proxy.
+  REMOTE_URL=http://public2-$BASE_ENV-acquia.gsb.stanford.edu
+  if [[ $BASE_ENV = "prod" ]]; then
+    REMOTE_URL=http://gsb.stanford.edu
+  fi
+
 fi
 
 # Remove the old installation directory
