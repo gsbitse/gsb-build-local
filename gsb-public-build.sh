@@ -186,7 +186,7 @@ if [ $USE_MAKE = true ]; then
   cd $WWW_DIR
   if [ $REFRESH = true ]; then
     echo "Run drush make and dump the database. This can take upwards of 15 minutes."
-    php $DRUSH_PATH make $DISTRO_DIR/${DISTRO//_/-}-distro.make $INSTALL_DIR & php $DRUSH_PATH @$SITE_ALIAS.$BASE_ENV sql-dump > $BUILD_DIR/$BASE_ENV.sql
+    php $DRUSH_PATH make --working-copy $DISTRO_DIR/${DISTRO//_/-}-distro.make $INSTALL_DIR & php $DRUSH_PATH @$SITE_ALIAS.$BASE_ENV sql-dump > $BUILD_DIR/$BASE_ENV.sql
     wait
 
     echo "Import the database"
