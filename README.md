@@ -7,7 +7,7 @@ Contains scripts used to build GSB sites locally.
 
 ### Instructions
 
-1. Create a .gsb-local-build folder in your root directory. - mkdir .gsb-local-build
+1. Create a .gsb-local-build folder in your root directory. - mkdir .gsb-build-local
 2. Into that directory copy global.cfg.example and rename it global.cfg
 3. Set the values in global.cfg according to your environment.
 4. Run sh gsb-public-build.sh
