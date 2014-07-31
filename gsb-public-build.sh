@@ -69,12 +69,12 @@ if [ $ERROR = true ]; then
 fi
 
 # Location of where we put the build artifacts.
-BUILD_DIR=$TMP_DIR/gsb-local-build/$DISTRO
+BUILD_DIR=$TMP_DIR/gsb-build-local/$DISTRO
 DISTRO_DIR=$BUILD_DIR/gsb-distro
 
 # Create build directory if it doesn't exist.
-if [ ! -d "$TMP_DIR/gsb-local-build" ]; then
-  mkdir "$TMP_DIR/gsb-local-build"
+if [ ! -d "$TMP_DIR/gsb-build-local" ]; then
+  mkdir "$TMP_DIR/gsb-build-local"
 fi
 
 # Create build directory if it doesn't exist.
