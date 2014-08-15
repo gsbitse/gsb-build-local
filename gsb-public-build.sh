@@ -153,6 +153,10 @@ if [ $REFRESH = true ] || [ $USE_MAKE = false ]; then
   REMOTE_URL=http://public2-$BASE_ENV-acquia.gsb.stanford.edu
   if [[ $BASE_ENV = "prod" ]]; then
     REMOTE_URL=http://gsb.stanford.edu
+  elif [[ $BASE_ENV = "test" ]]; then
+    REMOTE_URL=http://public2-stage-acquia.gsb.stanford.edu
+  elif [[ $BASE_ENV = "test2" ]]; then
+    REMOTE_URL=http://public2-stage2-acquia.gsb.stanford.edu
   fi
 
 fi
