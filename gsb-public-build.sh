@@ -292,6 +292,14 @@ if [ -d "$INSTALL_DIR" ]; then
 
   # Send a notification saying we are done.
   terminal-notifier -title "Completed" -message "The build has completed successfully."
+  
+  cd $INSTALL_DIR
+  echo "release built is: " $BRANCH > gsb_build_options.txt
+  echo "base env is: " $BASE_ENV >> gsb_build_options.txt
+  echo "db refresh is: " $REFRESH >> gsb_build_options.txt
+  echo "use make is: " $USE_MAKE >> gsb_build_options.txt  
+  
 else
   terminal-notifier -title "Failed" -message "The for some reason the installation directory wasn't created."
 fi
+
