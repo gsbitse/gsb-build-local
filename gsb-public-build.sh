@@ -184,6 +184,7 @@ if [ $USE_MAKE = true ]; then
 
   # Checkout chosen branch.
   cd $DISTRO_DIR
+  git pull
   git checkout $BRANCH
 
   # Move into our apache root and run drush make and/or replace the db.
