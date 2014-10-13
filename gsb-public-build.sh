@@ -150,13 +150,13 @@ if [ $REFRESH = true ] || [ $USE_MAKE = false ]; then
   fi
 
   # Get the url to use for stage_file_proxy.
-  REMOTE_URL=http://public2-$BASE_ENV-acquia.gsb.stanford.edu
+  REMOTE_URL=http://public2-$BASE_ENV.gsb.stanford.edu
   if [[ $BASE_ENV = "prod" ]]; then
     REMOTE_URL=http://gsb.stanford.edu
   elif [[ $BASE_ENV = "test" ]]; then
-    REMOTE_URL=http://public2-stage-acquia.gsb.stanford.edu
+    REMOTE_URL=http://public2-stage.gsb.stanford.edu
   elif [[ $BASE_ENV = "test2" ]]; then
-    REMOTE_URL=http://public2-stage2-acquia.gsb.stanford.edu
+    REMOTE_URL=http://public2-stage2.gsb.stanford.edu
   fi
 
 fi
