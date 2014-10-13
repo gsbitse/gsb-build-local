@@ -179,7 +179,7 @@ if [ $USE_MAKE = true ]; then
   # Setup the distro directory.
   if [ ! -d "$DISTRO_DIR" ]; then
     cd $BUILD_DIR
-    git clone git@github.com:gsbitse/gsb-distro.git
+    git clone $DISTRO_GIT_URL
   fi
 
   # Checkout chosen branch.
