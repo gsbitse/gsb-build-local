@@ -277,8 +277,8 @@ if [ -d "$INSTALL_DIR" ]; then
   php $DRUSH_PATH fra -y
   php $DRUSH_PATH cc all
 
-  echo "Disable Memcache and Acquia"
-  php $DRUSH_PATH dis -y memcache_admin acquia_purge acquia_agent
+  echo "Disable Memcache, Acquia and Shield"
+  php $DRUSH_PATH dis -y memcache_admin acquia_purge acquia_agent shield
 
   echo "Enable Stage File Proxy and Devel"
   php $DRUSH_PATH en -y devel stage_file_proxy
