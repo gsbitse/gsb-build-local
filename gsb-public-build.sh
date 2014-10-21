@@ -23,8 +23,8 @@ DEFAULT_BRANCH=master # Default branch for drush make build
 DEFAULT_INSTALL_DIR_NAME=gsb_public  # Default name for the installation directory name. This will be placed in the www directory.
 
 # Probably don't need to change these.
-DISTRO=gsb_public # Distrobution to use.
-DISTRO_GIT_URL=git@github.com:gsbitse/gsb-distro.git # Git url to the distro repo
+DISTRO=gsb-public # Distrobution to use.
+DISTRO_GIT_URL=git@github.com:$DISTRO/$DISTRO-distro.git # Git url to the distro repo
 
 # Get global variables
 if [ -e ~/.gsb-build-local/global.cfg ]; then
@@ -70,7 +70,7 @@ fi
 
 # Location of where we put the build artifacts.
 BUILD_DIR=$TMP_DIR/gsb-build-local/$DISTRO
-DISTRO_DIR=$BUILD_DIR/gsb-distro
+DISTRO_DIR=$BUILD_DIR/$DISTRO-distro
 
 # Create build directory if it doesn't exist.
 if [ ! -d "$TMP_DIR/gsb-build-local" ]; then
@@ -93,7 +93,7 @@ fi
 # Acquia specific values
 SITE_ALIAS=gsbpublic # Site alias used for drushing into acquia.
 ACQUIA_DIR=$BUILD_DIR/acquia-repo # Location to put the Acquia git checkout.
-ACQUIA_GIT_URL=gsbpublic@svn-3224.prod.hosting.acquia.com:gsbpublic.git  # URL to the acquia repo
+ACQUIA_GIT_URL=$SITE_ALIAS@svn-3224.prod.hosting.acquia.com:$SITE_ALIAS.git  # URL to the acquia repo
 
 # Set some default values.
 INSTALL_DIR=$WWW_DIR/$INSTALL_DIR_NAME
@@ -191,7 +191,7 @@ if [ $USE_MAKE = true ]; then
   cd $WWW_DIR
   if [ $REFRESH = true ]; then
     echo "Run drush make and dump the database. This can take upwards of 15 minutes."
-    php $DRUSH_PATH make --working-copy $DISTRO_DIR/${DISTRO//_/-}-distro.make $INSTALL_DIR & php $DRUSH_PATH @$SITE_ALIAS.$BASE_ENV sql-dump --structure-tables-list="cache,cache_*,history,search_*,sessions,watchdog" > $BUILD_DIR/$BASE_ENV.sql
+    php $DRUSH_PATH make --working-copy $DISTRO_DIR/$DISTRO-distro.make $INSTALL_DIR & php $DRUSH_PATH @$SITE_ALIAS.$BASE_ENV sql-dump --structure-tables-list="cache,cache_*,history,search_*,sessions,watchdog" > $BUILD_DIR/$BASE_ENV.sql
     wait
 
     echo "Import the database"
@@ -201,7 +201,7 @@ if [ $USE_MAKE = true ]; then
   else
     echo "Run drush make. This can take upwards of 15 minutes."
     # Run our build.
-    php $DRUSH_PATH make $DISTRO_DIR/${DISTRO//_/-}-distro.make $INSTALL_DIR
+    php $DRUSH_PATH make $DISTRO_DIR/$DISTRO-distro.make $INSTALL_DIR
   fi
 
   ELAPSED_TIME=$(($SECONDS - $START_TIME))
