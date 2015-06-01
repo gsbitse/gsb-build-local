@@ -201,7 +201,7 @@ if [ $USE_MAKE = true ]; then
   else
     echo "Run drush make. This can take upwards of 15 minutes."
     # Run our build.
-    php $DRUSH_PATH make $DISTRO_DIR/$DISTRO-distro.make $INSTALL_DIR
+    php $DRUSH_PATH make --working-copy $DISTRO_DIR/$DISTRO-distro.make $INSTALL_DIR
   fi
 
   ELAPSED_TIME=$(($SECONDS - $START_TIME))
