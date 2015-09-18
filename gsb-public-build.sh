@@ -269,6 +269,7 @@ if [ -d "$INSTALL_DIR" ]; then
   php $DRUSH_PATH vset cache 0
   php $DRUSH_PATH vset preprocess_css 0
   php $DRUSH_PATH vset preprocess_js 0
+  php $DRUSH_PATH vset error_level 2
 
   echo "Run database updates"
   php $DRUSH_PATH updb -y
