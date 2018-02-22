@@ -247,7 +247,7 @@ if [ -d "$INSTALL_DIR" ]; then
   SITES_DIR=$INSTALL_DIR/sites/default
   sudo rm -Rf $SITES_DIR
   sudo cp -R $SCRIPT_DIR/assets/$DISTRO/default $SITES_DIR
-  sudo cp $SCRIPT_DIR/extras/.htaccess-local $INSTALL_DIR/.htaccess
+  sudo cp $SCRIPT_DIR/assets/.htaccess-local $INSTALL_DIR/.htaccess
 
   echo "symlink $SITES_DIR $INSTALL_DIR/sites/gsb"
   ln -s $SITES_DIR $INSTALL_DIR/sites/gsb
