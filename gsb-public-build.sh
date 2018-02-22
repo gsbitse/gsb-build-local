@@ -5,35 +5,27 @@ convertsecs() {
     printf "%02d:%02d\n" $m $s
 }
 
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-
-DRUSH_PATH=  # Path to drush.php on your computer.
-WWW_DIR=  # Location of where your web root lives.
-TMP_DIR=  # The location of your tmp directory for drupal and this build script to use.
-
-# DB Credentials
-DB_USERNAME=
-DB_PASS=
-DB_URL=localhost
-DB_PORT=3306
-
-# Default values for some of the asked questions.
-DEFAULT_BASE_ENV=prod # The environment to base the builds off of.
-DEFAULT_BRANCH=master # Default branch for drush make build
-DEFAULT_INSTALL_DIR_NAME=gsb_public  # Default name for the installation directory name. This will be placed in the www directory.
-
 # Probably don't need to change these.
 DISTRO=gsb-public # Distrobution to use.
 DISTRO_GIT_URL=git@github.com:$DISTRO/$DISTRO-distro.git # Git url to the distro repo
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+PROD_TMP=/mnt/tmp/gsbpublic
 
 # Get global variables
-if [ -e ~/.gsb-build-local/global.cfg ]; then
-  source ~/.gsb-build-local/global.cfg
+if [ -e $SCRIPT_DIR/global.cfg ]; then
+  source $SCRIPT_DIR/global.cfg
+else
+  echo "[Build] $SCRIPT_DIR/global.cfg not found."
 fi
 
-# Get specific distro variables.
-if [ -e ~/.gsb-build-local/${DISTRO}.cfg ]; then
-  source ~/.gsb-build-local/$DISTRO.cfg
+# Get Operating System
+unamestr=`uname`
+if [[ "$unamestr" == 'Linux' ]]; then
+   platform='linux'
+elif [[ "$unamestr" == 'FreeBSD' ]]; then
+   platform='freebsd'
+else
+  platform='macos'
 fi
 
 # Check for missing variables.
@@ -60,6 +52,11 @@ fi
 
 if [ -z $DB_PASS ]; then
   echo "The \$DB_PASS variable needs to be set."
+  ERROR=true
+fi
+
+if [ ! -w "$PROD_TMP" ]; then
+  echo "The temporary directory $PROD_TMP needs to exist and be writable."
   ERROR=true
 fi
 
@@ -113,7 +110,7 @@ if [[ $INSTALL_DIR = "$WWW_DIR/" ]]; then
 fi
 
 # Read the base environment.
-read -e -p "Should the database be refereshed from the server? [y/N]: " REFRESH_CHOICE
+read -e -p "Should the database be refreshed from the server? [y/N]: " REFRESH_CHOICE
 
 # If nothing is specified then use the specified default.
 REFRESH=false
@@ -191,13 +188,14 @@ if [ $USE_MAKE = true ]; then
   cd $WWW_DIR
   if [ $REFRESH = true ]; then
     echo "Run drush make and dump the database. This can take upwards of 15 minutes."
-    php $DRUSH_PATH make --working-copy $DISTRO_DIR/$DISTRO-distro.make $INSTALL_DIR & php $DRUSH_PATH @$SITE_ALIAS.$BASE_ENV sql-dump --structure-tables-list="cache,cache_*,history,search_*,sessions,watchdog" > $BUILD_DIR/$BASE_ENV.sql
+    php $DRUSH_PATH make --working-copy $DISTRO_DIR/$DISTRO-distro.make $INSTALL_DIR
+    php $DRUSH_PATH @$SITE_ALIAS.$BASE_ENV sql-dump --structure-tables-list="cache,cache_*,history,search_*,sessions,watchdog" > $BUILD_DIR/$BASE_ENV.sql
     wait
 
     echo "Import the database"
-    mysql -u$DB_USERNAME -p$DB_PASS -e "DROP DATABASE $DB_NAME;"
-    mysql -u$DB_USERNAME -p$DB_PASS -e "CREATE DATABASE $DB_NAME;"
-    mysql -u$DB_USERNAME -p$DB_PASS $DB_NAME < $BUILD_DIR/$BASE_ENV.sql
+    mysql --defaults-extra-file=$SCRIPT_DIR/global-db.cnf -e "DROP DATABASE $DB_NAME;"
+    mysql --defaults-extra-file=$SCRIPT_DIR/global-db.cnf -e "CREATE DATABASE $DB_NAME;"
+    mysql --defaults-extra-file=$SCRIPT_DIR/global-db.cnf $DB_NAME < $BUILD_DIR/$BASE_ENV.sql
   else
     echo "Run drush make. This can take upwards of 15 minutes."
     # Run our build.
@@ -243,24 +241,34 @@ else
     mysql -u$DB_USERNAME -p$DB_PASS $DB_NAME < $BUILD_DIR/$BASE_ENV.sql
   fi
 fi
- 
+
 if [ -d "$INSTALL_DIR" ]; then
   echo "Set up sites directory"
   SITES_DIR=$INSTALL_DIR/sites/default
   sudo rm -Rf $SITES_DIR
   sudo cp -R $SCRIPT_DIR/assets/$DISTRO/default $SITES_DIR
+  sudo cp $SCRIPT_DIR/assets/.htaccess-local $INSTALL_DIR/.htaccess
+
+  echo "symlink $SITES_DIR $INSTALL_DIR/sites/gsb"
   ln -s $SITES_DIR $INSTALL_DIR/sites/gsb
 
   # Give 777 permissions to sites directory.
   sudo chmod -R 777 $SITES_DIR
 
   # replace database credentials
-  sed -i .bk "s/---db-username---/$DB_USERNAME/g" $SITES_DIR/settings.php
-  sed -i .bk "s/---db-password---/$DB_PASS/g" $SITES_DIR/settings.php
-  sed -i .bk "s/---db-name---/$DB_NAME/g" $SITES_DIR/settings.php
-  sed -i .bk "s/---db-url---/$DB_URL/g" $SITES_DIR/settings.php
-  sed -i .bk "s/---db-port---/$DB_PORT/g" $SITES_DIR/settings.php
-
+  if [[ $platform == 'linux' ]]; then
+    sed -i "s/---db-username---/$DB_USERNAME/g" $SITES_DIR/settings.php
+    sed -i "s/---db-password---/$DB_PASS/g" $SITES_DIR/settings.php
+    sed -i "s/---db-name---/$DB_NAME/g" $SITES_DIR/settings.php
+    sed -i "s/---db-url---/$DB_URL/g" $SITES_DIR/settings.php
+    sed -i "s/---db-port---/$DB_PORT/g" $SITES_DIR/settings.php
+  elif [[ $platform == 'macos' ]]; then
+    sed -i .bk "s/---db-username---/$DB_USERNAME/g" $SITES_DIR/settings.php
+    sed -i .bk "s/---db-password---/$DB_PASS/g" $SITES_DIR/settings.php
+    sed -i .bk "s/---db-name---/$DB_NAME/g" $SITES_DIR/settings.php
+    sed -i .bk "s/---db-url---/$DB_URL/g" $SITES_DIR/settings.php
+    sed -i .bk "s/---db-port---/$DB_PORT/g" $SITES_DIR/settings.php
+fi
   cd $INSTALL_DIR
 
   echo "Set site variables"
@@ -271,17 +279,16 @@ if [ -d "$INSTALL_DIR" ]; then
   php $DRUSH_PATH vset preprocess_js 0
   php $DRUSH_PATH vset error_level 2
 
+  echo "Disable Memcache, Acquia and Shield"
+  php $DRUSH_PATH dis -y memcache_admin acquia_purge acquia_agent shield
+
   echo "Run database updates"
   php $DRUSH_PATH updb -y
 
   echo "Revert features"
   php $DRUSH_PATH fra -y
-  php $DRUSH_PATH cc all
 
-  echo "Disable Memcache, Acquia and Shield"
-  php $DRUSH_PATH dis -y memcache_admin acquia_purge acquia_agent shield
-
-  echo "Enable Stage File Proxy and Devel"
+  #echo "Enable Stage File Proxy and Devel"
   php $DRUSH_PATH en -y devel stage_file_proxy
   php $DRUSH_PATH vset stage_file_proxy_origin $REMOTE_URL
 
@@ -293,7 +300,7 @@ if [ -d "$INSTALL_DIR" ]; then
   echo "Total Time: " $(convertsecs $ELAPSED_TIME)
 
   # Send a notification saying we are done.
-  terminal-notifier -title "Completed" -message "The build has completed successfully."
+  echo "The build has completed successfully."
   
   cd $INSTALL_DIR
   echo "release built is: " $BRANCH > gsb_build_options.txt
@@ -302,6 +309,6 @@ if [ -d "$INSTALL_DIR" ]; then
   echo "use make is: " $USE_MAKE >> gsb_build_options.txt  
   
 else
-  terminal-notifier -title "Failed" -message "The for some reason the installation directory wasn't created."
+  echo "The for some reason the installation directory wasn't created."
 fi
 
