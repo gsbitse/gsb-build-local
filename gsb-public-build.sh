@@ -242,11 +242,6 @@ else
   fi
 fi
 
-# if [ -d "$SITES_DIR/.idea" ]; then
-#  echo "Saving PHPStorm settings"
-#  sudo cp $SITES_DIR/.idea $INSTALL_DIR
-#fi
-
 if [ -d "$INSTALL_DIR" ]; then
   echo "Set up sites directory"
   SITES_DIR=$INSTALL_DIR/sites/default
@@ -283,9 +278,6 @@ fi
   php $DRUSH_PATH vset preprocess_css 0
   php $DRUSH_PATH vset preprocess_js 0
   php $DRUSH_PATH vset error_level 2
-
-  #echo "Enable Kraken configuration"
-  #php -r "print json_encode(array('api_key'=> $KRAKEN_KEY, 'api_secret'=> $KRAKEN_SECRET));"  | drush vset --format=json kraken -
 
   echo "Disable Memcache, Acquia and Shield"
   php $DRUSH_PATH dis -y memcache_admin acquia_purge acquia_agent shield

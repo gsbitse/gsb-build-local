@@ -9,10 +9,6 @@ DB_PASS=password
 DB_URL=localhost
 DB_PORT=3306
 
-# Kraken API
-KRAKEN_KEY=
-KRAKEN_SECRET=
-
 # Default values for some of the asked questions.
 DEFAULT_BASE_ENV=prod # The environment to base the builds off of.
 DEFAULT_BRANCH=master # Default branch for drush make build
