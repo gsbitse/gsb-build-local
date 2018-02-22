@@ -241,13 +241,20 @@ else
     mysql -u$DB_USERNAME -p$DB_PASS $DB_NAME < $BUILD_DIR/$BASE_ENV.sql
   fi
 fi
- 
+
+# if [ -d "$SITES_DIR/.idea" ]; then
+#  echo "Saving PHPStorm settings"
+#  sudo cp $SITES_DIR/.idea $INSTALL_DIR
+#fi
+
 if [ -d "$INSTALL_DIR" ]; then
   echo "Set up sites directory"
   SITES_DIR=$INSTALL_DIR/sites/default
   sudo rm -Rf $SITES_DIR
   sudo cp -R $SCRIPT_DIR/assets/$DISTRO/default $SITES_DIR
   sudo cp $SCRIPT_DIR/extras/.htaccess-local $INSTALL_DIR/.htaccess
+
+  echo "symlink $SITES_DIR $INSTALL_DIR/sites/gsb"
   ln -s $SITES_DIR $INSTALL_DIR/sites/gsb
 
   # Give 777 permissions to sites directory.
