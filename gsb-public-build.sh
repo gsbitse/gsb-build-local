@@ -9,6 +9,7 @@ convertsecs() {
 DISTRO=gsb-public # Distrobution to use.
 DISTRO_GIT_URL=git@github.com:$DISTRO/$DISTRO-distro.git # Git url to the distro repo
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+PROD_TMP=/mnt/tmp/gsbpublic
 
 # Get global variables
 if [ -e $SCRIPT_DIR/global.cfg ]; then
@@ -51,6 +52,11 @@ fi
 
 if [ -z $DB_PASS ]; then
   echo "The \$DB_PASS variable needs to be set."
+  ERROR=true
+fi
+
+if [ ! -w "$PROD_TMP" ]; then
+  echo "The temporary directory $PROD_TMP needs to exist and be writable."
   ERROR=true
 fi
 
@@ -241,6 +247,7 @@ if [ -d "$INSTALL_DIR" ]; then
   SITES_DIR=$INSTALL_DIR/sites/default
   sudo rm -Rf $SITES_DIR
   sudo cp -R $SCRIPT_DIR/assets/$DISTRO/default $SITES_DIR
+  sudo cp $SCRIPT_DIR/extras/.htaccess-local $INSTALL_DIR/.htaccess
   ln -s $SITES_DIR $INSTALL_DIR/sites/gsb
 
   # Give 777 permissions to sites directory.
@@ -270,6 +277,9 @@ fi
   php $DRUSH_PATH vset preprocess_js 0
   php $DRUSH_PATH vset error_level 2
 
+  #echo "Enable Kraken configuration"
+  #php -r "print json_encode(array('api_key'=> $KRAKEN_KEY, 'api_secret'=> $KRAKEN_SECRET));"  | drush vset --format=json kraken -
+
   echo "Disable Memcache, Acquia and Shield"
   php $DRUSH_PATH dis -y memcache_admin acquia_purge acquia_agent shield
 
@@ -280,7 +290,7 @@ fi
   php $DRUSH_PATH fra -y
 
   #echo "Enable Stage File Proxy and Devel"
-  #php $DRUSH_PATH en -y devel stage_file_proxy
+  php $DRUSH_PATH en -y devel stage_file_proxy
   php $DRUSH_PATH vset stage_file_proxy_origin $REMOTE_URL
 
   echo "Enable views development setup."
