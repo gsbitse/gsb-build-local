@@ -13,6 +13,6 @@ Contains scripts used to build GSB sites locally.
 
 Installation & Configuration Notes: 
 
-[Linux](README-linux.md) 
+[Linux](doc/README-linux.md) 
 
-[MacOSX](README-macosx.md)
+[MacOSX](doc/README-macosx.md)
