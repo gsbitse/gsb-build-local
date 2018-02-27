@@ -1,5 +1,5 @@
 # Created by .ignore support plugin (hsz.mobi)
-/global.cfg
-/global-db.cnf
+/conf/global.cfg
+/conf/global-db.cnf
 .idea/
 /gsb-build-files/
