@@ -6,10 +6,11 @@ convertsecs() {
 }
 
 # Probably don't need to change these.
-DISTRO=gsb-public # Distrobution to use.
+DISTRO=gsb-public # Distribution to use.
 DISTRO_GIT_URL=git@github.com:$DISTRO/$DISTRO-distro.git # Git url to the distro repo
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 PROD_TMP=/mnt/tmp/gsbpublic
+TMP_DIR=$SCRIPT_DIR/gsb-build-files
 
 # Get global variables
 if [ -e $SCRIPT_DIR/global.cfg ]; then
@@ -66,16 +67,12 @@ if [ $ERROR = true ]; then
 fi
 
 # Location of where we put the build artifacts.
-BUILD_DIR=$TMP_DIR/gsb-build-local/$DISTRO
-DISTRO_DIR=$BUILD_DIR/$DISTRO-distro
+BUILD_DIR=$SCRIPT_DIR/gsb-build-files
+DISTRO_DIR=$SCRIPT_DIR/gsb-build-files/$DISTRO-distro
 
 # Create build directory if it doesn't exist.
-if [ ! -d "$TMP_DIR/gsb-build-local" ]; then
-  mkdir "$TMP_DIR/gsb-build-local"
-fi
-
-# Create build directory if it doesn't exist.
-if [ ! -d "$BUILD_DIR" ]; then
+if [ ! -d "gsb-build-files" ]; then
+  echo "[Build] Initialize temp directory"
   mkdir "$BUILD_DIR"
 fi
 
@@ -84,6 +81,7 @@ read -e -p "Enter the installation folder which will also be the db name. Don't 
 
 # If nothing is specified then use the specified default.
 if [ ! -n "$INSTALL_DIR_NAME" ]; then
+  echo "[Build] Set INSTALL_DIR_NAME"
   INSTALL_DIR_NAME=$DEFAULT_INSTALL_DIR_NAME
 fi
 
@@ -95,12 +93,6 @@ ACQUIA_GIT_URL=$SITE_ALIAS@svn-3224.prod.hosting.acquia.com:$SITE_ALIAS.git  # U
 # Set some default values.
 INSTALL_DIR=$WWW_DIR/$INSTALL_DIR_NAME
 DB_NAME=$INSTALL_DIR_NAME
-SITE_TMP_DIR=$TMP_DIR/$INSTALL_DIR_NAME
-
-# Create site temp directory if it doesn't exist.
-if [ ! -d "$SITE_TMP_DIR" ]; then
-  mkdir "$SITE_TMP_DIR"
-fi
 
 # Make sure something didn't go wrong and the install directory is the same as
 # www. Otherwise we will delete the entire www directory.
@@ -173,6 +165,7 @@ if [ $USE_MAKE = true ]; then
   # Start our counter.
   START_TIME=$SECONDS
 
+### Highlight
   # Setup the distro directory.
   if [ ! -d "$DISTRO_DIR" ]; then
     cd $BUILD_DIR
@@ -185,13 +178,15 @@ if [ $USE_MAKE = true ]; then
   git checkout $BRANCH
 
   # Move into our apache root and run drush make and/or replace the db.
-  cd $WWW_DIR
   if [ $REFRESH = true ]; then
+    echo "BUILD $BUILD_DIR"
     echo "Run drush make and dump the database. This can take upwards of 15 minutes."
-    php $DRUSH_PATH make --working-copy $DISTRO_DIR/$DISTRO-distro.make $INSTALL_DIR
+    sudo rm -Rf $BUILD_DIR/gsb_public
+    php $DRUSH_PATH make --working-copy $DISTRO_DIR/$DISTRO-distro.make $BUILD_DIR/gsb_public
+    echo "BUILD Copy make files to apache folder"
+    cp -fr $BUILD_DIR/gsb_public $INSTALL_DIR
     php $DRUSH_PATH @$SITE_ALIAS.$BASE_ENV sql-dump --structure-tables-list="cache,cache_*,history,search_*,sessions,watchdog" > $BUILD_DIR/$BASE_ENV.sql
     wait
-
     echo "Import the database"
     mysql --defaults-extra-file=$SCRIPT_DIR/global-db.cnf -e "DROP DATABASE $DB_NAME;"
     mysql --defaults-extra-file=$SCRIPT_DIR/global-db.cnf -e "CREATE DATABASE $DB_NAME;"
@@ -249,7 +244,6 @@ if [ -d "$INSTALL_DIR" ]; then
   sudo cp -R $SCRIPT_DIR/assets/$DISTRO/default $SITES_DIR
   sudo cp $SCRIPT_DIR/assets/.htaccess-local $INSTALL_DIR/.htaccess
 
-  echo "symlink $SITES_DIR $INSTALL_DIR/sites/gsb"
   ln -s $SITES_DIR $INSTALL_DIR/sites/gsb
 
   # Give 777 permissions to sites directory.
@@ -279,6 +273,9 @@ fi
   php $DRUSH_PATH vset preprocess_js 0
   php $DRUSH_PATH vset error_level 2
 
+php -r "print json_encode(array('api_key'=> $KRAKEN_KEY, 'api_secret'=> $KRAKEN_SECRET));"  | drush vset --format=json kraken -
+
+
   echo "Disable Memcache, Acquia and Shield"
   php $DRUSH_PATH dis -y memcache_admin acquia_purge acquia_agent shield
 
@@ -291,6 +288,9 @@ fi
   #echo "Enable Stage File Proxy and Devel"
   php $DRUSH_PATH en -y devel stage_file_proxy
   php $DRUSH_PATH vset stage_file_proxy_origin $REMOTE_URL
+
+  echo "Enable Kraken"
+  php -r "print json_encode(array('api_key'=> $KRAKEN_KEY, 'api_secret'=> $KRAKEN_SECRET));"  | drush vset --format=json kraken -
 
   echo "Enable views development setup."
   php $DRUSH_PATH vd
