@@ -5,29 +5,27 @@ convertsecs() {
     printf "%02d:%02d\n" $m $s
 }
 
-# Probably don't need to change these.
-DISTRO=gsb-public # Distribution to use.
-DISTRO_GIT_URL=git@github.com:$DISTRO/$DISTRO-distro.git # Git url to the distro repo
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-PROD_TMP=/mnt/tmp/gsbpublic
-TMP_DIR=$SCRIPT_DIR/gsb-build-files
 
 # Get global variables
-if [ -e $SCRIPT_DIR/conf/global.cfg ]; then
-  source $SCRIPT_DIR/conf/global.cfg
+if [ -e conf/global.cfg ]; then
+  source conf/global.cfg
 else
-  echo "[Build] $SCRIPT_DIR/conf/global.cfg not found."
+  echo "[Build] global.cfg not found."
 fi
 
-# Get Operating System
-unamestr=`uname`
-if [[ "$unamestr" == 'Linux' ]]; then
-   platform='linux'
-elif [[ "$unamestr" == 'FreeBSD' ]]; then
-   platform='freebsd'
-else
-  platform='macos'
-fi
+# Location of where we put the build artifacts.
+# gsb-public-build.sh       # SCRIPT_DIR
+#  -> build                 # BUILD_DIR
+#     -> gsb-public-distro  # BUILD_DISTRO_DIR
+#     -> www                # BUILD_WWW_DIR
+#     -> tmp                # BUILD_TMP_DIR
+
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+BUILD_DIR=build
+BUILD_DISTRO_DIR=$SCRIPT_DIR/build/$DISTRO-distro
+BUILD_MAKE_DIR=$SCRIPT_DIR/build/gsb_public
+BUILD_WWW_DIR=$SCRIPT_DIR/build/www
+BUILD_TMP_DIR=$SCRIPT_DIR/build/drupal-tmp
 
 # Check for missing variables.
 ERROR=false
@@ -36,13 +34,13 @@ if [ -z $DRUSH_PATH ]; then
   ERROR=true
 fi
 
-if [ -z $WWW_DIR ]; then
-  echo "The \$WWW_DIR variable needs to be set."
+if [ -z $BUILD_WWW_DIR ]; then
+  echo "The \$BUILD_WWW_DIR variable needs to be set."
   ERROR=true
 fi
 
-if [ -z $TMP_DIR ]; then
-  echo "The \$TMP_DIR variable needs to be set."
+if [ -z $BUILD_TMP_DIR ]; then
+  echo "The \$BUILD_TMP_DIR variable needs to be set."
   ERROR=true
 fi
 
@@ -66,39 +64,16 @@ if [ $ERROR = true ]; then
   exit
 fi
 
-# Location of where we put the build artifacts.
-BUILD_DIR=$SCRIPT_DIR/gsb-build-files
-DISTRO_DIR=$SCRIPT_DIR/gsb-build-files/$DISTRO-distro
-
 # Create build directory if it doesn't exist.
-if [ ! -d "gsb-build-files" ]; then
-  echo "[Build] Initialize temp directory"
+if [ ! -d "$BUILD_DIR" ]; then
+  echo "[Build] Initialize build directory"
   mkdir "$BUILD_DIR"
 fi
 
-# Read the default directory and profile name.
-read -e -p "Enter the installation folder which will also be the db name. Don't use spaces! [$DEFAULT_INSTALL_DIR_NAME]: " INSTALL_DIR_NAME
-
-# If nothing is specified then use the specified default.
-if [ ! -n "$INSTALL_DIR_NAME" ]; then
-  echo "[Build] Set INSTALL_DIR_NAME"
-  INSTALL_DIR_NAME=$DEFAULT_INSTALL_DIR_NAME
-fi
-
-# Acquia specific values
-SITE_ALIAS=gsbpublic # Site alias used for drushing into acquia.
-ACQUIA_DIR=$BUILD_DIR/acquia-repo # Location to put the Acquia git checkout.
-ACQUIA_GIT_URL=$SITE_ALIAS@svn-3224.prod.hosting.acquia.com:$SITE_ALIAS.git  # URL to the acquia repo
-
-# Set some default values.
-INSTALL_DIR=$WWW_DIR/$INSTALL_DIR_NAME
-DB_NAME=$INSTALL_DIR_NAME
-
-# Make sure something didn't go wrong and the install directory is the same as
-# www. Otherwise we will delete the entire www directory.
-if [[ $INSTALL_DIR = "$WWW_DIR/" ]]; then
-  echo "Installation directory is the same as www dir and that is bad."
-  exit
+# Create build directory if it doesn't exist.
+if [ ! -d "$BUILD_TMP_DIR" ]; then
+  echo "[Build] Initialize temp directory"
+  mkdir "$BUILD_TMP_DIR"
 fi
 
 # Read the base environment.
@@ -151,7 +126,7 @@ if [ $REFRESH = true ] || [ $USE_MAKE = false ]; then
 fi
 
 # Remove the old installation directory
-sudo rm -Rf $INSTALL_DIR
+sudo rm -Rf $BUILD_WWW_DIR
 
 if [ $USE_MAKE = true ]; then
   # Figure out which branch
@@ -167,38 +142,39 @@ if [ $USE_MAKE = true ]; then
 
 ### Highlight
   # Setup the distro directory.
-  if [ ! -d "$DISTRO_DIR" ]; then
+  if [ ! -d "$BUILD_DISTRO_DIR" ]; then
     cd $BUILD_DIR
     git clone $DISTRO_GIT_URL
   fi
 
   # Checkout chosen branch.
-  cd $DISTRO_DIR
+  cd $BUILD_DISTRO_DIR
   git pull
   git checkout $BRANCH
 
   # Move into our apache root and run drush make and/or replace the db.
   if [ $REFRESH = true ]; then
-    echo "BUILD $BUILD_DIR"
+    cd $BUILD_DIR
     echo "Run drush make and dump the database. This can take upwards of 15 minutes."
-    sudo rm -Rf $BUILD_DIR/gsb_public
+    sudo rm -Rf $BUILD_MAKE_DIR
     echo "BUILD Copy make files to apache folder"
-    if [ ! -d "$INSTALL_DIR" ]; then
-        mkdir -p $INSTALL_DIR
+    if [ ! -d "$BUILD_WWW_DIR" ]; then
+    echo "building in $BUILD_WWW_DIR"
+        mkdir -p $BUILD_WWW_DIR
     fi
-    php $DRUSH_PATH make --working-copy $DISTRO_DIR/$DISTRO-distro.make $BUILD_DIR/gsb_public
-
-    cp -fr $BUILD_DIR/gsb_public $INSTALL_DIR
+    php $DRUSH_PATH make --working-copy $BUILD_DISTRO_DIR/$DISTRO-distro.make $BUILD_MAKE_DIR
+    cp -fr $BUILD_MAKE_DIR $BUILD_WWW_DIR
+    exit
     php $DRUSH_PATH @$SITE_ALIAS.$BASE_ENV sql-dump --structure-tables-list="cache,cache_*,history,search_*,sessions,watchdog" > $BUILD_DIR/$BASE_ENV.sql
     wait
     echo "Import the database"
-    mysql --defaults-extra-file=$SCRIPT_DIR/conf/global-db.conf -e "DROP DATABASE $DB_NAME;"
-    mysql --defaults-extra-file=$SCRIPT_DIR/conf/global-db.conf -e "CREATE DATABASE $DB_NAME;"
-    mysql --defaults-extra-file=$SCRIPT_DIR/conf/global-db.conf $DB_NAME < $BUILD_DIR/$BASE_ENV.sql
+    #mysql --defaults-extra-file=$SCRIPT_DIR/conf/global-db.conf -e "DROP DATABASE $DB_NAME;"
+    #mysql --defaults-extra-file=$SCRIPT_DIR/conf/global-db.conf -e "CREATE DATABASE $DB_NAME;"
+    #mysql --defaults-extra-file=$SCRIPT_DIR/conf/global-db.conf $DB_NAME < $BUILD_DIR/$BASE_ENV.sql
   else
     echo "Run drush make. This can take upwards of 15 minutes."
     # Run our build.
-    php $DRUSH_PATH make --working-copy $DISTRO_DIR/$DISTRO-distro.make $INSTALL_DIR
+    php $DRUSH_PATH make --working-copy $BUILD_DISTRO_DIR/$DISTRO-distro.make $BUILD_WWW_DIR
   fi
 
   ELAPSED_TIME=$(($SECONDS - $START_TIME))
@@ -228,7 +204,7 @@ else
   git checkout $BRANCH
 
   echo "Copying the files to the installation directory."
-  cp -R $ACQUIA_DIR/docroot/ $INSTALL_DIR
+  cp -R $ACQUIA_DIR/docroot/ $BUILD_WWW_DIR
 
   if [ $REFRESH = true ]; then
     echo "Dump the database. This can take upwards of 15 minutes."
@@ -241,14 +217,16 @@ else
   fi
 fi
 
-if [ -d "$INSTALL_DIR" ]; then
+if [ -d "$BUILD_WWW_DIR" ]; then
   echo "Set up sites directory"
-  SITES_DIR=$INSTALL_DIR/sites/default
+  SITES_DIR=$BUILD_WWW_DIR/sites/default
   sudo rm -Rf $SITES_DIR
   sudo cp -R $SCRIPT_DIR/assets/$DISTRO/default $SITES_DIR
-  sudo cp $SCRIPT_DIR/assets/.htaccess-local $INSTALL_DIR/.htaccess
+  sudo cp $SCRIPT_DIR/assets/.htaccess $BUILD_WWW_DIR/.htaccess
 
-  ln -s $SITES_DIR $INSTALL_DIR/sites/gsb
+exit
+
+  ln -s $SITES_DIR $BUILD_WWW_DIR/sites/gsb
 
   # Give 777 permissions to sites directory.
   sudo chmod -R 777 $SITES_DIR
@@ -267,11 +245,11 @@ if [ -d "$INSTALL_DIR" ]; then
     sed -i .bk "s/---db-url---/$DB_URL/g" $SITES_DIR/settings.php
     sed -i .bk "s/---db-port---/$DB_PORT/g" $SITES_DIR/settings.php
 fi
-  cd $INSTALL_DIR
+  cd $BUILD_WWW_DIR
 
   echo "Set site variables"
   php $DRUSH_PATH upwd --password=admin admin
-  php $DRUSH_PATH vset file_temporary_path $TMP_DIR
+  php $DRUSH_PATH vset file_temporary_path $BUILD_TMP_DIR
   php $DRUSH_PATH vset cache 0
   php $DRUSH_PATH vset preprocess_css 0
   php $DRUSH_PATH vset preprocess_js 0
@@ -305,8 +283,6 @@ php -r "print json_encode(array('api_key'=> $KRAKEN_KEY, 'api_secret'=> $KRAKEN_
 
   # Send a notification saying we are done.
   echo "The build has completed successfully."
-  
-  cd $INSTALL_DIR
   echo "release built is: " $BRANCH > gsb_build_options.txt
   echo "base env is: " $BASE_ENV >> gsb_build_options.txt
   echo "db refresh is: " $REFRESH >> gsb_build_options.txt
