@@ -2,4 +2,4 @@
 /conf/global.cfg
 /conf/global-db.cnf
 .idea/
-/gsb-build-files/
+/build/

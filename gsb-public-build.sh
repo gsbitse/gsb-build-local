@@ -140,7 +140,6 @@ if [ $USE_MAKE = true ]; then
   # Start our counter.
   START_TIME=$SECONDS
 
-### Highlight
   # Setup the distro directory.
   if [ ! -d "$BUILD_DISTRO_DIR" ]; then
     cd $BUILD_DIR
@@ -164,7 +163,7 @@ if [ $USE_MAKE = true ]; then
     fi
     php $DRUSH_PATH make --working-copy $BUILD_DISTRO_DIR/$DISTRO-distro.make $BUILD_MAKE_DIR
     cp -fr $BUILD_MAKE_DIR $BUILD_WWW_DIR
-    exit
+exit
     php $DRUSH_PATH @$SITE_ALIAS.$BASE_ENV sql-dump --structure-tables-list="cache,cache_*,history,search_*,sessions,watchdog" > $BUILD_DIR/$BASE_ENV.sql
     wait
     echo "Import the database"
@@ -289,6 +288,6 @@ php -r "print json_encode(array('api_key'=> $KRAKEN_KEY, 'api_secret'=> $KRAKEN_
   echo "use make is: " $USE_MAKE >> gsb_build_options.txt  
   
 else
-  echo "The for some reason the installation directory wasn't created."
+  echo "For some reason the installation directory wasn't created."
 fi
 
