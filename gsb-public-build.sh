@@ -182,15 +182,19 @@ if [ $USE_MAKE = true ]; then
     echo "BUILD $BUILD_DIR"
     echo "Run drush make and dump the database. This can take upwards of 15 minutes."
     sudo rm -Rf $BUILD_DIR/gsb_public
-    php $DRUSH_PATH make --working-copy $DISTRO_DIR/$DISTRO-distro.make $BUILD_DIR/gsb_public
     echo "BUILD Copy make files to apache folder"
+    if [ ! -d "$INSTALL_DIR" ]; then
+        mkdir -p $INSTALL_DIR
+    fi
+    php $DRUSH_PATH make --working-copy $DISTRO_DIR/$DISTRO-distro.make $BUILD_DIR/gsb_public
+
     cp -fr $BUILD_DIR/gsb_public $INSTALL_DIR
     php $DRUSH_PATH @$SITE_ALIAS.$BASE_ENV sql-dump --structure-tables-list="cache,cache_*,history,search_*,sessions,watchdog" > $BUILD_DIR/$BASE_ENV.sql
     wait
     echo "Import the database"
-    mysql --defaults-extra-file=$SCRIPT_DIR/conf/global-db.cnf -e "DROP DATABASE $DB_NAME;"
-    mysql --defaults-extra-file=$SCRIPT_DIR/conf/global-db.cnf -e "CREATE DATABASE $DB_NAME;"
-    mysql --defaults-extra-file=$SCRIPT_DIR/conf/global-db.cnf $DB_NAME < $BUILD_DIR/$BASE_ENV.sql
+    mysql --defaults-extra-file=$SCRIPT_DIR/conf/global-db.conf -e "DROP DATABASE $DB_NAME;"
+    mysql --defaults-extra-file=$SCRIPT_DIR/conf/global-db.conf -e "CREATE DATABASE $DB_NAME;"
+    mysql --defaults-extra-file=$SCRIPT_DIR/conf/global-db.conf $DB_NAME < $BUILD_DIR/$BASE_ENV.sql
   else
     echo "Run drush make. This can take upwards of 15 minutes."
     # Run our build.
@@ -231,9 +235,9 @@ else
     php $DRUSH_PATH @$SITE_ALIAS.$BASE_ENV sql-dump --structure-tables-list="cache,cache_*,history,search_*,sessions,watchdog" > $BUILD_DIR/$BASE_ENV.sql
 
     echo "Import the database"
-    mysql --defaults-extra-file=$SCRIPT_DIR/conf/global-db.cnf -e "DROP DATABASE $DB_NAME;"
-    mysql --defaults-extra-file=$SCRIPT_DIR/conf/global-db.cnf -e "CREATE DATABASE $DB_NAME;"
-    mysql --defaults-extra-file=$SCRIPT_DIR/conf/global-db.cnf $DB_NAME < $BUILD_DIR/$BASE_ENV.sql
+    mysql --defaults-extra-file=$SCRIPT_DIR/conf/global-db.conf -e "DROP DATABASE $DB_NAME;"
+    mysql --defaults-extra-file=$SCRIPT_DIR/conf/global-db.conf -e "CREATE DATABASE $DB_NAME;"
+    mysql --defaults-extra-file=$SCRIPT_DIR/conf/global-db.conf $DB_NAME < $BUILD_DIR/$BASE_ENV.sql
   fi
 fi
 
