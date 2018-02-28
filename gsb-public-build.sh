@@ -13,10 +13,10 @@ PROD_TMP=/mnt/tmp/gsbpublic
 TMP_DIR=$SCRIPT_DIR/gsb-build-files
 
 # Get global variables
-if [ -e $SCRIPT_DIR/global.cfg ]; then
-  source $SCRIPT_DIR/global.cfg
+if [ -e $SCRIPT_DIR/conf/global.cfg ]; then
+  source $SCRIPT_DIR/conf/global.cfg
 else
-  echo "[Build] $SCRIPT_DIR/global.cfg not found."
+  echo "[Build] $SCRIPT_DIR/conf/global.cfg not found."
 fi
 
 # Get Operating System
@@ -188,9 +188,9 @@ if [ $USE_MAKE = true ]; then
     php $DRUSH_PATH @$SITE_ALIAS.$BASE_ENV sql-dump --structure-tables-list="cache,cache_*,history,search_*,sessions,watchdog" > $BUILD_DIR/$BASE_ENV.sql
     wait
     echo "Import the database"
-    mysql --defaults-extra-file=$SCRIPT_DIR/global-db.cnf -e "DROP DATABASE $DB_NAME;"
-    mysql --defaults-extra-file=$SCRIPT_DIR/global-db.cnf -e "CREATE DATABASE $DB_NAME;"
-    mysql --defaults-extra-file=$SCRIPT_DIR/global-db.cnf $DB_NAME < $BUILD_DIR/$BASE_ENV.sql
+    mysql --defaults-extra-file=$SCRIPT_DIR/conf/global-db.cnf -e "DROP DATABASE $DB_NAME;"
+    mysql --defaults-extra-file=$SCRIPT_DIR/conf/global-db.cnf -e "CREATE DATABASE $DB_NAME;"
+    mysql --defaults-extra-file=$SCRIPT_DIR/conf/global-db.cnf $DB_NAME < $BUILD_DIR/$BASE_ENV.sql
   else
     echo "Run drush make. This can take upwards of 15 minutes."
     # Run our build.
@@ -231,9 +231,9 @@ else
     php $DRUSH_PATH @$SITE_ALIAS.$BASE_ENV sql-dump --structure-tables-list="cache,cache_*,history,search_*,sessions,watchdog" > $BUILD_DIR/$BASE_ENV.sql
 
     echo "Import the database"
-    mysql -u$DB_USERNAME -p$DB_PASS -e "DROP DATABASE $DB_NAME;"
-    mysql -u$DB_USERNAME -p$DB_PASS -e "CREATE DATABASE $DB_NAME;"
-    mysql -u$DB_USERNAME -p$DB_PASS $DB_NAME < $BUILD_DIR/$BASE_ENV.sql
+    mysql --defaults-extra-file=$SCRIPT_DIR/conf/global-db.cnf -e "DROP DATABASE $DB_NAME;"
+    mysql --defaults-extra-file=$SCRIPT_DIR/conf/global-db.cnf -e "CREATE DATABASE $DB_NAME;"
+    mysql --defaults-extra-file=$SCRIPT_DIR/conf/global-db.cnf $DB_NAME < $BUILD_DIR/$BASE_ENV.sql
   fi
 fi
 
