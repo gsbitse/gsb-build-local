@@ -21,11 +21,11 @@ fi
 #     -> tmp                # BUILD_TMP_DIR
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-BUILD_DIR=build
-BUILD_DISTRO_DIR=$SCRIPT_DIR/build/$DISTRO-distro
-BUILD_MAKE_DIR=$SCRIPT_DIR/build/gsb_public
-BUILD_WWW_DIR=$SCRIPT_DIR/build/www
-BUILD_TMP_DIR=$SCRIPT_DIR/build/drupal-tmp
+BUILD_DIR=$SCRIPT_DIR/build
+BUILD_DISTRO_DIR=$BUILD_DIR/$DISTRO-distro
+BUILD_MAKE_DIR=$BUILD_DIR/gsb_public
+BUILD_WWW_DIR=$BUILD_DIR/www
+BUILD_TMP_DIR=$BUILD_DIR/drupal-tmp
 
 # Check for missing variables.
 ERROR=false
@@ -153,27 +153,28 @@ if [ $USE_MAKE = true ]; then
 
   # Move into our apache root and run drush make and/or replace the db.
   if [ $REFRESH = true ]; then
-    cd $BUILD_DIR
-    echo "Run drush make and dump the database. This can take upwards of 15 minutes."
+    echo "Deleting Old $BUILD_MAKE_DIR"
     sudo rm -Rf $BUILD_MAKE_DIR
+    echo "Run drush make and dump the database. This can take upwards of 15 minutes."
+    php $DRUSH_PATH make --working-copy $BUILD_DISTRO_DIR/$DISTRO-distro.make $BUILD_MAKE_DIR
+
     echo "BUILD Copy make files to apache folder"
     if [ ! -d "$BUILD_WWW_DIR" ]; then
-    echo "building in $BUILD_WWW_DIR"
+    echo "Creating $BUILD_WWW_DIR"
         mkdir -p $BUILD_WWW_DIR
     fi
-    php $DRUSH_PATH make --working-copy $BUILD_DISTRO_DIR/$DISTRO-distro.make $BUILD_MAKE_DIR
     cp -fr $BUILD_MAKE_DIR $BUILD_WWW_DIR
-exit
+
     php $DRUSH_PATH @$SITE_ALIAS.$BASE_ENV sql-dump --structure-tables-list="cache,cache_*,history,search_*,sessions,watchdog" > $BUILD_DIR/$BASE_ENV.sql
     wait
     echo "Import the database"
-    #mysql --defaults-extra-file=$SCRIPT_DIR/conf/global-db.conf -e "DROP DATABASE $DB_NAME;"
-    #mysql --defaults-extra-file=$SCRIPT_DIR/conf/global-db.conf -e "CREATE DATABASE $DB_NAME;"
-    #mysql --defaults-extra-file=$SCRIPT_DIR/conf/global-db.conf $DB_NAME < $BUILD_DIR/$BASE_ENV.sql
+    mysql --defaults-extra-file=$SCRIPT_DIR/conf/global-db.conf -e "DROP DATABASE $DB_NAME;"
+    mysql --defaults-extra-file=$SCRIPT_DIR/conf/global-db.conf -e "CREATE DATABASE $DB_NAME;"
+    mysql --defaults-extra-file=$SCRIPT_DIR/conf/global-db.conf $DB_NAME < $BUILD_DIR/$BASE_ENV.sql
   else
     echo "Run drush make. This can take upwards of 15 minutes."
     # Run our build.
-    php $DRUSH_PATH make --working-copy $BUILD_DISTRO_DIR/$DISTRO-distro.make $BUILD_WWW_DIR
+    php $DRUSH_PATH make --working-copy $BUILD_DISTRO_DIR/$DISTRO-distro.make $BUILD_MAKE_DIR
   fi
 
   ELAPSED_TIME=$(($SECONDS - $START_TIME))
@@ -191,7 +192,6 @@ else
   echo "Pulling latest repository changes."
   cd $ACQUIA_DIR
   git pull
-
   # Branch names don't match environment names.
   BRANCH=$BASE_ENV
   if [ $BASE_ENV = 'test' ]; then
@@ -218,14 +218,10 @@ fi
 
 if [ -d "$BUILD_WWW_DIR" ]; then
   echo "Set up sites directory"
-  SITES_DIR=$BUILD_WWW_DIR/sites/default
+  SITES_DIR=$BUILD_WWW_DIR/gsb_public/sites/default
   sudo rm -Rf $SITES_DIR
   sudo cp -R $SCRIPT_DIR/assets/$DISTRO/default $SITES_DIR
-  sudo cp $SCRIPT_DIR/assets/.htaccess $BUILD_WWW_DIR/.htaccess
-
-exit
-
-  ln -s $SITES_DIR $BUILD_WWW_DIR/sites/gsb
+  ln -s $SITES_DIR $BUILD_WWW_DIR/gsb_public/sites/gsb
 
   # Give 777 permissions to sites directory.
   sudo chmod -R 777 $SITES_DIR
@@ -244,8 +240,9 @@ exit
     sed -i .bk "s/---db-url---/$DB_URL/g" $SITES_DIR/settings.php
     sed -i .bk "s/---db-port---/$DB_PORT/g" $SITES_DIR/settings.php
 fi
-  cd $BUILD_WWW_DIR
 
+  sudo cp $SCRIPT_DIR/assets/.htaccess $BUILD_WWW_DIR/gsb_public/.htaccess
+  cd $BUILD_WWW_DIR/gsb_public
   echo "Set site variables"
   php $DRUSH_PATH upwd --password=admin admin
   php $DRUSH_PATH vset file_temporary_path $BUILD_TMP_DIR
@@ -254,8 +251,7 @@ fi
   php $DRUSH_PATH vset preprocess_js 0
   php $DRUSH_PATH vset error_level 2
 
-php -r "print json_encode(array('api_key'=> $KRAKEN_KEY, 'api_secret'=> $KRAKEN_SECRET));"  | drush vset --format=json kraken -
-
+  php -r "print json_encode(array('api_key'=> '$KRAKEN_KEY', 'api_secret'=> '$KRAKEN_SECRET'));"  | drush vset --format=json kraken -
 
   echo "Disable Memcache, Acquia and Shield"
   php $DRUSH_PATH dis -y memcache_admin acquia_purge acquia_agent shield
@@ -271,11 +267,12 @@ php -r "print json_encode(array('api_key'=> $KRAKEN_KEY, 'api_secret'=> $KRAKEN_
   php $DRUSH_PATH vset stage_file_proxy_origin $REMOTE_URL
 
   echo "Enable Kraken"
-  php -r "print json_encode(array('api_key'=> $KRAKEN_KEY, 'api_secret'=> $KRAKEN_SECRET));"  | drush vset --format=json kraken -
+  php -r "print json_encode(array('api_key'=> '$KRAKEN_KEY', 'api_secret'=> '$KRAKEN_SECRET'));"  | drush vset --format=json kraken -
 
   echo "Enable views development setup."
   php $DRUSH_PATH vd
   php $DRUSH_PATH cc all
+
 
   ELAPSED_TIME=$(($SECONDS - $START_TIME))
   echo "Total Time: " $(convertsecs $ELAPSED_TIME)
@@ -286,7 +283,9 @@ php -r "print json_encode(array('api_key'=> $KRAKEN_KEY, 'api_secret'=> $KRAKEN_
   echo "base env is: " $BASE_ENV >> gsb_build_options.txt
   echo "db refresh is: " $REFRESH >> gsb_build_options.txt
   echo "use make is: " $USE_MAKE >> gsb_build_options.txt  
-  
+
+#  ln -s ../build/www/gsb_public/profiles/gsb_public gsb_public
+
 else
   echo "For some reason the installation directory wasn't created."
 fi
