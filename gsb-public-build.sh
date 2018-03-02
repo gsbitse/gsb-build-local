@@ -1,4 +1,5 @@
 #!/bin/bash
+
 convertsecs() {
   m=$(($1 % 3600 / 60))
   s=$(($1 % 60))
@@ -12,6 +13,11 @@ else
   echo "[Build] global.cfg not found."
 fi
 
+if [ -e conf/lastbranch.cfg ]; then
+  source conf/lastbranch.cfg
+  DEFAULT_BRANCH = $LAST_BRANCH
+fi
+
 # Location of where we put the build artifacts.
 # gsb-public-build.sh       # SCRIPT_DIR
 #  -> build                 # BUILD_DIR
@@ -23,8 +29,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BUILD_DIR=$SCRIPT_DIR/build
 BUILD_DISTRO_DIR=$BUILD_DIR/$DISTRO-distro
 BUILD_MAKE_DIR=$BUILD_DIR/gsb_public
-BUILD_WWW_DIR=$BUILD_DIR/www
 BUILD_TMP_DIR=$BUILD_DIR/drupal-tmp
+BUILD_WWW_DIR=$SCRIPT_DIR/src
 
 # Check for missing variables.
 ERROR=false
@@ -63,6 +69,24 @@ if [ $ERROR = true ]; then
   exit
 fi
 
+echo "Build Options";
+echo "[1] Full Build: Runs make and downloads fresh database from production"
+echo "[2] Quick Build: Restores files and database from last full build"
+echo "[3] Restore files only: Restores files from last full build"
+echo "[4] Restore database only:  Restores database from last full build"
+echo "[5] Cancel"
+read -e -p ":" BUILD_OPTION
+
+if [ $BUILD_OPTION = 1 ]; then
+  read -e -p "Enter the branch to use [$DEFAULT_BRANCH]: " BRANCH
+  # If nothing is specified then use the specified default.
+  if [ ! -n "$BRANCH" ]; then
+    BRANCH=$DEFAULT_BRANCH
+  else
+    echo "LAST_BRANCH = $BRANCH" > conf/lastbranch.cfg
+  fi
+fi
+
 # Create build directory if it doesn't exist.
 if [ ! -d "$BUILD_DIR" ]; then
   echo "[Build] Initialize build directory"
@@ -75,67 +99,10 @@ if [ ! -d "$BUILD_TMP_DIR" ]; then
   mkdir "$BUILD_TMP_DIR"
 fi
 
-# Read the base environment.
-read -e -p "Should the database be refreshed from the server? [y/N]: " REFRESH_CHOICE
-
-# If nothing is specified then use the specified default.
-REFRESH=false
-if [[ $REFRESH_CHOICE = "y" ]] || [[ $REFRESH_CHOICE = "Y" ]]; then
-  REFRESH=true
-fi
-
-# Read the option of using the make file.
-read -e -p "Should this run a drush make? (Otherwise it will get the code from an environment of your choice) [y/N]: " USE_MAKE_CHOICE
-
-# Use make decision
-USE_MAKE=false
-if [[ $USE_MAKE_CHOICE = "y" ]] || [[ $USE_MAKE_CHOICE = "Y" ]]; then
-  USE_MAKE=true
-fi
-
-# Only ask for environment if it's needed.
-if [ $REFRESH = true ] || [ $USE_MAKE = false ]; then
-
-  # Read the base environment.
-  read -e -p "Enter the environment to base the site on [$DEFAULT_BASE_ENV]: " BASE_ENV
-
-  # If nothing is specified then use the specified default.
-  if [ ! -n "$BASE_ENV" ]; then
-    BASE_ENV=$DEFAULT_BASE_ENV
-  fi
-
-  # Since acquia is confusing allowing stage and stage2 to be used along with
-  # test and test2
-  if [ $BASE_ENV = "stage" ]; then
-    BASE_ENV="test"
-  elif [ $BASE_ENV = "stage2" ]; then
-    BASE_ENV="test2"
-  fi
-
-  # Get the url to use for stage_file_proxy.
-  REMOTE_URL=http://public2-$BASE_ENV.gsb.stanford.edu
-  if [[ $BASE_ENV = "prod" ]]; then
-    REMOTE_URL=http://gsb.stanford.edu
-  elif [[ $BASE_ENV = "test" ]]; then
-    REMOTE_URL=http://public2-stage.gsb.stanford.edu
-  elif [[ $BASE_ENV = "test2" ]]; then
-    REMOTE_URL=http://public2-stage2.gsb.stanford.edu
-  fi
-
-fi
-
 # Remove the old installation directory
 rm -Rf $BUILD_WWW_DIR
 
-if [ $USE_MAKE = true ]; then
-  # Figure out which branch
-  read -e -p "Enter the branch to use [$DEFAULT_BRANCH]: " BRANCH
-
-  # If nothing is specified then use the specified default.
-  if [ ! -n "$BRANCH" ]; then
-    BRANCH=$DEFAULT_BRANCH
-  fi
-
+if [ $BUILD_OPTION = 1 ]; then
   # Start our counter.
   START_TIME=$SECONDS
 
@@ -151,94 +118,52 @@ if [ $USE_MAKE = true ]; then
   git checkout $BRANCH
 
   # Move into our apache root and run drush make and/or replace the db.
-  if [ $REFRESH = true ]; then
-    echo "Deleting Old $BUILD_MAKE_DIR"
-    rm -Rf $BUILD_MAKE_DIR
-    echo "Run drush make and dump the database. This can take upwards of 15 minutes."
-    php $DRUSH_PATH make --working-copy $BUILD_DISTRO_DIR/$DISTRO-distro.make $BUILD_MAKE_DIR
+  echo "Deleting Old $BUILD_MAKE_DIR"
+  rm -Rf $BUILD_MAKE_DIR
+  echo "Run drush make and dump the database. This can take upwards of 15 minutes."
+  php $DRUSH_PATH make --working-copy $BUILD_DISTRO_DIR/$DISTRO-distro.make $BUILD_MAKE_DIR
 
-    php $DRUSH_PATH @$SITE_ALIAS.$BASE_ENV sql-dump --structure-tables-list="cache,cache_*,history,search_*,sessions,watchdog" > $BUILD_DIR/$BASE_ENV.sql
-    wait
-    echo "Import the database"
-    mysql --defaults-extra-file=$SCRIPT_DIR/conf/global-db.conf -e "DROP DATABASE $DB_NAME;"
-    mysql --defaults-extra-file=$SCRIPT_DIR/conf/global-db.conf -e "CREATE DATABASE $DB_NAME;"
-    mysql --defaults-extra-file=$SCRIPT_DIR/conf/global-db.conf $DB_NAME < $BUILD_DIR/$BASE_ENV.sql
-  else
-    echo "Run drush make. This can take upwards of 15 minutes."
-    # Run our build.
-    php $DRUSH_PATH make --working-copy $BUILD_DISTRO_DIR/$DISTRO-distro.make $BUILD_MAKE_DIR
-  fi
-
+  php $DRUSH_PATH @$SITE_ALIAS.$BASE_ENV sql-dump --structure-tables-list="cache,cache_*,history,search_*,sessions,watchdog" > $BUILD_DIR/$BASE_ENV.sql
+  wait
+  echo "Import the database"
+  mysql --defaults-extra-file=$SCRIPT_DIR/conf/global-db.conf -e "DROP DATABASE $DB_NAME;"
+  mysql --defaults-extra-file=$SCRIPT_DIR/conf/global-db.conf -e "CREATE DATABASE $DB_NAME;"
+  mysql --defaults-extra-file=$SCRIPT_DIR/conf/global-db.conf $DB_NAME < $BUILD_DIR/$BASE_ENV.sql
   ELAPSED_TIME=$(($SECONDS - $START_TIME))
   echo "Make Time: " $(convertsecs $ELAPSED_TIME)
-else
-  # Start our timer.
-  START_TIME=$SECONDS
 
-  # Setup the acquia repo
-  if [ ! -d "$ACQUIA_DIR" ]; then
-    cd $BUILD_DIR;
-    git clone $ACQUIA_GIT_URL acquia-repo
+  rm -Rf $BUILD_MAKE_DIR/sites/default
+  cp -R $SCRIPT_DIR/assets/$DISTRO/default $BUILD_MAKE_DIR/sites
+  ln -s $BUILD_MAKE_DIR/sites/default $BUILD_MAKE_DIR/sites/gsb
+  chmod -R 777 $BUILD_MAKE_DIR/sites
+
+  # replace database credentials
+  if [[ $platform == 'linux' ]]; then
+    sed -i "s/---db-username---/$DB_USERNAME/g" $BUILD_MAKE_DIR/sites/default/settings.php
+    sed -i "s/---db-password---/$DB_PASS/g" $BUILD_MAKE_DIR/sites/default/settings.php
+    sed -i "s/---db-name---/$DB_NAME/g" $BUILD_MAKE_DIR/sites/default/settings.php
+    sed -i "s/---db-url---/$DB_URL/g" $BUILD_MAKE_DIR/sites/default/settings.php
+    sed -i "s/---db-port---/$DB_PORT/g" $BUILD_MAKE_DIR/sites/default/settings.php
+  elif [[ $platform == 'macos' ]]; then
+    sed -i .bk "s/---db-username---/$DB_USERNAME/g" $BUILD_MAKE_DIR/sites/default/settings.php
+    sed -i .bk "s/---db-password---/$DB_PASS/g" $BUILD_MAKE_DIR/sites/default/settings.php
+    sed -i .bk "s/---db-name---/$DB_NAME/g" $BUILD_MAKE_DIR/sites/default/settings.php
+    sed -i .bk "s/---db-url---/$DB_URL/g" $BUILD_MAKE_DIR/sites/default/settings.php
+    sed -i .bk "s/---db-port---/$DB_PORT/g" $BUILD_MAKE_DIR/sites/default/settings.php
   fi
 
-  echo "Pulling latest repository changes."
-  cd $ACQUIA_DIR
-  git pull
-  # Branch names don't match environment names.
-  BRANCH=$BASE_ENV
-  if [ $BASE_ENV = 'test' ]; then
-    BRANCH=stage
-  elif [ $BASE_ENV = 'test2' ]; then
-    BRANCH=stage2
+  cp $SCRIPT_DIR/assets/.htaccess $BUILD_MAKE_DIR/.htaccess
+
+  echo "BUILD Copy make files to apache folder"
+  if [ ! -d "$BUILD_WWW_DIR" ]; then
+    echo "Creating $BUILD_WWW_DIR"
+    mkdir -p $BUILD_WWW_DIR
   fi
-
-  git checkout $BRANCH
-
-  echo "Copying the files to the installation directory."
-  cp -R $ACQUIA_DIR/docroot/ $BUILD_WWW_DIR
-
-  if [ $REFRESH = true ]; then
-    echo "Dump the database. This can take upwards of 15 minutes."
-    php $DRUSH_PATH @$SITE_ALIAS.$BASE_ENV sql-dump --structure-tables-list="cache,cache_*,history,search_*,sessions,watchdog" > $BUILD_DIR/$BASE_ENV.sql
-
-    echo "Import the database"
-    mysql --defaults-extra-file=$SCRIPT_DIR/conf/global-db.conf -e "DROP DATABASE $DB_NAME;"
-    mysql --defaults-extra-file=$SCRIPT_DIR/conf/global-db.conf -e "CREATE DATABASE $DB_NAME;"
-    mysql --defaults-extra-file=$SCRIPT_DIR/conf/global-db.conf $DB_NAME < $BUILD_DIR/$BASE_ENV.sql
-  fi
+  cp -fr $BUILD_MAKE_DIR $BUILD_WWW_DIR
 fi
 
-rm -Rf $BUILD_MAKE_DIR/sites/default
-cp -R $SCRIPT_DIR/assets/$DISTRO/default $BUILD_MAKE_DIR/sites
-ln -s $BUILD_MAKE_DIR/sites/default $BUILD_MAKE_DIR/sites/gsb
-chmod -R 777 $BUILD_MAKE_DIR/sites
-
-# replace database credentials
-if [[ $platform == 'linux' ]]; then
-  sed -i "s/---db-username---/$DB_USERNAME/g" $BUILD_MAKE_DIR/sites/default/settings.php
-  sed -i "s/---db-password---/$DB_PASS/g" $BUILD_MAKE_DIR/sites/default/settings.php
-  sed -i "s/---db-name---/$DB_NAME/g" $BUILD_MAKE_DIR/sites/default/settings.php
-  sed -i "s/---db-url---/$DB_URL/g" $BUILD_MAKE_DIR/sites/default/settings.php
-  sed -i "s/---db-port---/$DB_PORT/g" $BUILD_MAKE_DIR/sites/default/settings.php
-elif [[ $platform == 'macos' ]]; then
-  sed -i .bk "s/---db-username---/$DB_USERNAME/g" $BUILD_MAKE_DIR/sites/default/settings.php
-  sed -i .bk "s/---db-password---/$DB_PASS/g" $BUILD_MAKE_DIR/sites/default/settings.php
-  sed -i .bk "s/---db-name---/$DB_NAME/g" $BUILD_MAKE_DIR/sites/default/settings.php
-  sed -i .bk "s/---db-url---/$DB_URL/g" $BUILD_MAKE_DIR/sites/default/settings.php
-  sed -i .bk "s/---db-port---/$DB_PORT/g" $BUILD_MAKE_DIR/sites/default/settings.php
-fi
-
-cp $SCRIPT_DIR/assets/.htaccess $BUILD_MAKE_DIR/.htaccess
-
-echo "BUILD Copy make files to apache folder"
-if [ ! -d "$BUILD_WWW_DIR" ]; then
-  echo "Creating $BUILD_WWW_DIR"
-  mkdir -p $BUILD_WWW_DIR
-fi
-cp -fr $BUILD_MAKE_DIR $BUILD_WWW_DIR
-
-cd $BUILD_WWW_DIR/gsb_public
 echo "Set site variables"
+cd $BUILD_WWW_DIR/gsb_public
 php $DRUSH_PATH upwd --password=admin admin
 php $DRUSH_PATH vset file_temporary_path $BUILD_TMP_DIR
 php $DRUSH_PATH vset cache 0
@@ -265,7 +190,6 @@ php -r "print json_encode(array('api_key'=> '$KRAKEN_KEY', 'api_secret'=> '$KRAK
 echo "Enable views development setup."
 php $DRUSH_PATH vd
 php $DRUSH_PATH cc all
-
 
 ELAPSED_TIME=$(($SECONDS - $START_TIME))
 echo "Total Time: " $(convertsecs $ELAPSED_TIME)
