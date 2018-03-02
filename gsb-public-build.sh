@@ -1,10 +1,9 @@
 #!/bin/bash
 convertsecs() {
-    m=$(( $1  % 3600 / 60 ))
-    s=$(( $1 % 60 ))
-    printf "%02d:%02d\n" $m $s
+  m=$(($1 % 3600 / 60))
+  s=$(($1 % 60))
+  printf "%02d:%02d\n" $m $s
 }
-
 
 # Get global variables
 if [ -e conf/global.cfg ]; then
@@ -20,7 +19,7 @@ fi
 #     -> www                # BUILD_WWW_DIR
 #     -> tmp                # BUILD_TMP_DIR
 
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BUILD_DIR=$SCRIPT_DIR/build
 BUILD_DISTRO_DIR=$BUILD_DIR/$DISTRO-distro
 BUILD_MAKE_DIR=$BUILD_DIR/gsb_public
@@ -126,7 +125,7 @@ if [ $REFRESH = true ] || [ $USE_MAKE = false ]; then
 fi
 
 # Remove the old installation directory
-sudo rm -Rf $BUILD_WWW_DIR
+rm -Rf $BUILD_WWW_DIR
 
 if [ $USE_MAKE = true ]; then
   # Figure out which branch
@@ -154,16 +153,9 @@ if [ $USE_MAKE = true ]; then
   # Move into our apache root and run drush make and/or replace the db.
   if [ $REFRESH = true ]; then
     echo "Deleting Old $BUILD_MAKE_DIR"
-    sudo rm -Rf $BUILD_MAKE_DIR
+    rm -Rf $BUILD_MAKE_DIR
     echo "Run drush make and dump the database. This can take upwards of 15 minutes."
     php $DRUSH_PATH make --working-copy $BUILD_DISTRO_DIR/$DISTRO-distro.make $BUILD_MAKE_DIR
-
-    echo "BUILD Copy make files to apache folder"
-    if [ ! -d "$BUILD_WWW_DIR" ]; then
-    echo "Creating $BUILD_WWW_DIR"
-        mkdir -p $BUILD_WWW_DIR
-    fi
-    cp -fr $BUILD_MAKE_DIR $BUILD_WWW_DIR
 
     php $DRUSH_PATH @$SITE_ALIAS.$BASE_ENV sql-dump --structure-tables-list="cache,cache_*,history,search_*,sessions,watchdog" > $BUILD_DIR/$BASE_ENV.sql
     wait
@@ -216,77 +208,74 @@ else
   fi
 fi
 
-if [ -d "$BUILD_WWW_DIR" ]; then
-  echo "Set up sites directory"
-  SITES_DIR=$BUILD_WWW_DIR/gsb_public/sites/default
-  sudo rm -Rf $SITES_DIR
-  sudo cp -R $SCRIPT_DIR/assets/$DISTRO/default $SITES_DIR
-  ln -s $SITES_DIR $BUILD_WWW_DIR/gsb_public/sites/gsb
+rm -Rf $BUILD_MAKE_DIR/sites/default
+cp -R $SCRIPT_DIR/assets/$DISTRO/default $BUILD_MAKE_DIR/sites
+ln -s $BUILD_MAKE_DIR/sites/default $BUILD_MAKE_DIR/sites/gsb
+chmod -R 777 $BUILD_MAKE_DIR/sites
 
-  # Give 777 permissions to sites directory.
-  sudo chmod -R 777 $SITES_DIR
-
-  # replace database credentials
-  if [[ $platform == 'linux' ]]; then
-    sed -i "s/---db-username---/$DB_USERNAME/g" $SITES_DIR/settings.php
-    sed -i "s/---db-password---/$DB_PASS/g" $SITES_DIR/settings.php
-    sed -i "s/---db-name---/$DB_NAME/g" $SITES_DIR/settings.php
-    sed -i "s/---db-url---/$DB_URL/g" $SITES_DIR/settings.php
-    sed -i "s/---db-port---/$DB_PORT/g" $SITES_DIR/settings.php
-  elif [[ $platform == 'macos' ]]; then
-    sed -i .bk "s/---db-username---/$DB_USERNAME/g" $SITES_DIR/settings.php
-    sed -i .bk "s/---db-password---/$DB_PASS/g" $SITES_DIR/settings.php
-    sed -i .bk "s/---db-name---/$DB_NAME/g" $SITES_DIR/settings.php
-    sed -i .bk "s/---db-url---/$DB_URL/g" $SITES_DIR/settings.php
-    sed -i .bk "s/---db-port---/$DB_PORT/g" $SITES_DIR/settings.php
+# replace database credentials
+if [[ $platform == 'linux' ]]; then
+  sed -i "s/---db-username---/$DB_USERNAME/g" $BUILD_MAKE_DIR/sites/default/settings.php
+  sed -i "s/---db-password---/$DB_PASS/g" $BUILD_MAKE_DIR/sites/default/settings.php
+  sed -i "s/---db-name---/$DB_NAME/g" $BUILD_MAKE_DIR/sites/default/settings.php
+  sed -i "s/---db-url---/$DB_URL/g" $BUILD_MAKE_DIR/sites/default/settings.php
+  sed -i "s/---db-port---/$DB_PORT/g" $BUILD_MAKE_DIR/sites/default/settings.php
+elif [[ $platform == 'macos' ]]; then
+  sed -i .bk "s/---db-username---/$DB_USERNAME/g" $BUILD_MAKE_DIR/sites/default/settings.php
+  sed -i .bk "s/---db-password---/$DB_PASS/g" $BUILD_MAKE_DIR/sites/default/settings.php
+  sed -i .bk "s/---db-name---/$DB_NAME/g" $BUILD_MAKE_DIR/sites/default/settings.php
+  sed -i .bk "s/---db-url---/$DB_URL/g" $BUILD_MAKE_DIR/sites/default/settings.php
+  sed -i .bk "s/---db-port---/$DB_PORT/g" $BUILD_MAKE_DIR/sites/default/settings.php
 fi
 
-  sudo cp $SCRIPT_DIR/assets/.htaccess $BUILD_WWW_DIR/gsb_public/.htaccess
-  cd $BUILD_WWW_DIR/gsb_public
-  echo "Set site variables"
-  php $DRUSH_PATH upwd --password=admin admin
-  php $DRUSH_PATH vset file_temporary_path $BUILD_TMP_DIR
-  php $DRUSH_PATH vset cache 0
-  php $DRUSH_PATH vset preprocess_css 0
-  php $DRUSH_PATH vset preprocess_js 0
-  php $DRUSH_PATH vset error_level 2
+cp $SCRIPT_DIR/assets/.htaccess $BUILD_MAKE_DIR/.htaccess
 
-  php -r "print json_encode(array('api_key'=> '$KRAKEN_KEY', 'api_secret'=> '$KRAKEN_SECRET'));"  | drush vset --format=json kraken -
+echo "BUILD Copy make files to apache folder"
+if [ ! -d "$BUILD_WWW_DIR" ]; then
+  echo "Creating $BUILD_WWW_DIR"
+  mkdir -p $BUILD_WWW_DIR
+fi
+cp -fr $BUILD_MAKE_DIR $BUILD_WWW_DIR
 
-  echo "Disable Memcache, Acquia and Shield"
-  php $DRUSH_PATH dis -y memcache_admin acquia_purge acquia_agent shield
+cd $BUILD_WWW_DIR/gsb_public
+echo "Set site variables"
+php $DRUSH_PATH upwd --password=admin admin
+php $DRUSH_PATH vset file_temporary_path $BUILD_TMP_DIR
+php $DRUSH_PATH vset cache 0
+php $DRUSH_PATH vset preprocess_css 0
+php $DRUSH_PATH vset preprocess_js 0
+php $DRUSH_PATH vset error_level 2
 
-  echo "Run database updates"
-  php $DRUSH_PATH updb -y
+echo "Disable Memcache, Acquia and Shield"
+php $DRUSH_PATH dis -y memcache_admin acquia_purge acquia_agent shield
 
-  echo "Revert features"
-  php $DRUSH_PATH fra -y
+echo "Run database updates"
+php $DRUSH_PATH updb -y
 
-  #echo "Enable Stage File Proxy and Devel"
-  php $DRUSH_PATH en -y devel stage_file_proxy
-  php $DRUSH_PATH vset stage_file_proxy_origin $REMOTE_URL
+echo "Revert features"
+php $DRUSH_PATH fra -y
 
-  echo "Enable Kraken"
-  php -r "print json_encode(array('api_key'=> '$KRAKEN_KEY', 'api_secret'=> '$KRAKEN_SECRET'));"  | drush vset --format=json kraken -
+#echo "Enable Stage File Proxy and Devel"
+php $DRUSH_PATH en -y devel stage_file_proxy
+php $DRUSH_PATH vset stage_file_proxy_origin $REMOTE_URL
 
-  echo "Enable views development setup."
-  php $DRUSH_PATH vd
-  php $DRUSH_PATH cc all
+echo "Enable Kraken"
+php -r "print json_encode(array('api_key'=> '$KRAKEN_KEY', 'api_secret'=> '$KRAKEN_SECRET'));" | $DRUSH_PATH vset --format=json kraken -
+
+echo "Enable views development setup."
+php $DRUSH_PATH vd
+php $DRUSH_PATH cc all
 
 
-  ELAPSED_TIME=$(($SECONDS - $START_TIME))
-  echo "Total Time: " $(convertsecs $ELAPSED_TIME)
+ELAPSED_TIME=$(($SECONDS - $START_TIME))
+echo "Total Time: " $(convertsecs $ELAPSED_TIME)
 
-  # Send a notification saying we are done.
-  echo "The build has completed successfully."
-  echo "release built is: " $BRANCH > gsb_build_options.txt
-  echo "base env is: " $BASE_ENV >> gsb_build_options.txt
-  echo "db refresh is: " $REFRESH >> gsb_build_options.txt
-  echo "use make is: " $USE_MAKE >> gsb_build_options.txt  
+# Send a notification saying we are done.
+echo "The build has completed successfully."
+echo "release built is: " $BRANCH > gsb_build_options.txt
+echo "base env is: " $BASE_ENV >> gsb_build_options.txt
+echo "db refresh is: " $REFRESH >> gsb_build_options.txt
+echo "use make is: " $USE_MAKE >> gsb_build_options.txt
 
 #  ln -s ../build/www/gsb_public/profiles/gsb_public gsb_public
-
-else
-  echo "For some reason the installation directory wasn't created."
-fi
 
