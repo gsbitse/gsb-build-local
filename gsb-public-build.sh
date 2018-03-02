@@ -276,6 +276,3 @@ echo "release built is: " $BRANCH > gsb_build_options.txt
 echo "base env is: " $BASE_ENV >> gsb_build_options.txt
 echo "db refresh is: " $REFRESH >> gsb_build_options.txt
 echo "use make is: " $USE_MAKE >> gsb_build_options.txt
-
-#  ln -s ../build/www/gsb_public/profiles/gsb_public gsb_public
-
