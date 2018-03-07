@@ -1,0 +1,15 @@
+{
+  "name": "stanford_gsb/development_tools",
+  "description": "Tools for interfacing with Github & Jira",
+  "license": "proprietary",
+  "authors": [
+    {
+      "name": "Justin Riddiough",
+      "email": "justinriddiough@stanford.edu"
+    }
+  ],
+  "require": {
+    "php-http/guzzle6-adapter": "v1.1.1",
+    "knplabs/github-api": "2.7.0"
+  }
+}
