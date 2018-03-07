@@ -3,5 +3,7 @@
 /conf/global-db.cnf
 .idea/
 /build/
-/src/gsb_public/
+/src/
 /conf/lastbranch.cfg
+/conf/github.auth
+/vendor/
