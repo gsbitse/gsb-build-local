@@ -7,7 +7,7 @@ import_database() {
 }
 
 copy_make_files_to_www() {
-  echo "[Build] Copying files from last build"
+  echo "[Build] Copying build files to source directory"
   rm -Rf $BUILD_WWW_DIR
   mkdir -p $BUILD_WWW_DIR
   cp -fr $BUILD_MAKE_DIR $BUILD_WWW_DIR
@@ -27,10 +27,10 @@ post_database_operations() {
   php $DRUSH_PATH dis -y memcache_admin acquia_purge acquia_agent shield
 
   echo "[Build] Run database updates"
-  php $DRUSH_PATH updb -y
+#  php $DRUSH_PATH updb -y
 
   echo "[Build] Revert features"
-  #php $DRUSH_PATH fra -y
+#  php $DRUSH_PATH fra -y
 
   #echo "Enable Stage File Proxy and Devel"
   php $DRUSH_PATH en -y devel stage_file_proxy
