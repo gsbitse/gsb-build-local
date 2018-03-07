@@ -1,5 +1,4 @@
 #!/bin/bash
-
 # Get global variables
 if [ -e conf/global.cfg ]; then
   source conf/global.cfg
