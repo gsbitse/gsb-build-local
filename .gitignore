@@ -7,3 +7,4 @@
 /conf/lastbranch.cfg
 /conf/github.auth
 /vendor/
+composer.lock
